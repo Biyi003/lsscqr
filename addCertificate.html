@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lagos State Safety Commission – Add Certificate</title>
+  <style>
+    :root {
+      --card-max: 480px;
+      --radius: 20px;
+      --shadow: 0 10px 30px rgba(0,0,0,.15);
+      --muted: #6b7280;
+      --brand: #111827;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .bg-wrap {
+      position: fixed; inset: 0; overflow: hidden; z-index: -1;
+      background: linear-gradient(135deg, #e5e7eb, #c7d2fe);
+    }
+    .bg-wrap img {
+      width: 100%; height: 100%; object-fit: cover;
+      filter: blur(14px) saturate(1.05);
+      transform: scale(1.06);
+    }
+
+    .page {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+    .card {
+      width: 100%;
+      max-width: var(--card-max);
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px 18px 24px;
+    }
+
+    .header {
+      display: grid;
+      grid-template-columns: 56px 1fr 56px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .crest {
+      width: 56px; height: 56px; object-fit: contain;
+    }
+    h1 {
+      margin: 0; text-align: center; font-size: 18px; line-height: 1.2; font-weight: 700;
+    }
+    .subtitle {
+      text-align: center; margin: 2px 0 14px; color: var(--muted); font-size: 13px;
+    }
+
+    form { display: grid; gap: 12px; }
+    label {
+      font-size: 14px; font-weight: 600; margin-bottom: 2px; display: block;
+    }
+    input, select {
+      width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #d1d5db;
+      font-size: 15px;
+    }
+    input:focus, select:focus {
+      outline: 2px solid #2563eb; border-color: #2563eb;
+    }
+
+    button {
+      appearance: none; border: 0; background: #111827; color: white;
+      padding: 12px; border-radius: 999px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,.12);
+      font-size: 15px; margin-top: 8px;
+    }
+
+    .status {
+      margin-top: 12px; padding: 10px; border-radius: 12px; font-size: 14px;
+      text-align: center;
+    }
+    .status.info { background: #eef2ff; color: #3730a3; }
+    .status.err  { background: #fee2e2; color: #991b1b; }
+
+    #result {
+      margin-top: 14px; text-align: center;
+      font-size: 14px; color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-wrap">
+    <img src="certificate-bg.png" alt="" onerror="this.style.display='none'" />
+  </div>
+
+  <div class="page">
+    <article class="card">
+      <div class="header">
+        <img src="lagos_logo.png" class="crest" alt="Lagos crest" onerror="this.style.visibility='hidden'" />
+        <h1>Add Certificate</h1>
+        <img src="lssc_logo.png" class="crest" alt="LSSC logo" onerror="this.style.visibility='hidden'" />
+      </div>
+      <p class="subtitle">Enter new certificate details below</p>
+
+      <form id="certificateForm">
+        <div>
+          <label for="siteName">Name of Site</label>
+          <input type="text" id="siteName" required>
+        </div>
+        <div>
+          <label for="siteAddress">Site Address</label>
+          <input type="text" id="siteAddress" required>
+        </div>
+        <div>
+          <label for="reference">Reference</label>
+          <input type="text" id="reference" required>
+        </div>
+        <div>
+          <label for="dateIssued">Date of Issue</label>
+          <input type="date" id="dateIssued" required>
+        </div>
+        <div>
+          <label for="validity">Validity</label>
+          <input type="date" id="validity" required>
+        </div>
+        <div>
+          <label for="processedBy">Processed by</label>
+          <input type="text" id="processedBy" required>
+        </div>
+        <div>
+          <label for="contact">Site Contact</label>
+          <input type="text" id="contact" required>
+        </div>
+        <div>
+          <label for="phone">Phone No.</label>
+          <input type="tel" id="phone" required>
+        </div>
+        <button type="submit">Save Certificate</button>
+      </form>
+
+      <div id="status" class="status info" style="display:none;"></div>
+      <div id="result"></div>
+    </article>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6l6lllyyJuzY3kVKxiA2H309Ca_3qIHk",
+      authDomain: "lsscqr-72e18.firebaseapp.com",
+      projectId: "lsscqr-72e18",
+      storageBucket: "lsscqr-72e18.firebasestorage.app",
+      messagingSenderId: "607942256026",
+      appId: "1:607942256026:web:4af3740be761ca8cee4623",
+      measurementId: "G-DML2K3EQE8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const form = document.getElementById("certificateForm");
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+
+    function setStatus(kind, text) {
+      statusEl.style.display = "block";
+      statusEl.className = `status ${kind}`;
+      statusEl.textContent = text;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setStatus("info", "Saving certificate…");
+
+      try {
+        const docRef = await addDoc(collection(db, "certificates"), {
+          siteName: document.getElementById("siteName").value,
+          siteAddress: document.getElementById("siteAddress").value,
+          reference: document.getElementById("reference").value,
+          dateIssued: document.getElementById("dateIssued").value,
+          validity: document.getElementById("validity").value,
+          processedBy: document.getElementById("processedBy").value,
+          contact: document.getElementById("contact").value,
+          phone: document.getElementById("phone").value,
+          createdAt: serverTimestamp()
+        });
+
+        setStatus("info", "Certificate saved successfully!");
+        resultEl.innerHTML = `
+          ✅ Done!<br>
+          <a href="generateqr.html?id=${docRef.id}">Generate QR for this certificate</a>
+        `;
+      } catch (err) {
+        console.error(err);
+        setStatus("err", "Error saving certificate");
+      }
+    });
+  </script>
+</body>
+</html>
