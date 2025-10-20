@@ -258,7 +258,7 @@
 
       // Link to generate QR
       const qrLink = document.createElement('a');
-      qrLink.href = `generateqr.html?id=${encodeURIComponent(id)}`;
+      qrLink.href = `/generateQR?id=${encodeURIComponent(id)}`;
       qrLink.className = 'copy-btn small';
       qrLink.textContent = 'Generate QR';
       qrLink.style.textDecoration = 'none';
@@ -307,3 +307,4 @@
   </script>
 </body>
 </html>
+
