@@ -75,7 +75,7 @@
       outline: 2px solid #2563eb; border-color: #2563eb;
     }
 
-    button {
+    button, .copy-btn {
       appearance: none; border: 0; background: #111827; color: white;
       padding: 12px; border-radius: 999px; font-weight: 600; cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,.12);
@@ -93,6 +93,31 @@
       margin-top: 14px; text-align: center;
       font-size: 14px; color: green;
     }
+
+    /* small ID row */
+    .id-row {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      margin-top:8px;
+      flex-wrap:wrap;
+    }
+    .id-bubble {
+      background:#f3f4f6;
+      border:1px dashed #d1d5db;
+      padding:8px 12px;
+      border-radius:12px;
+      font-family:monospace;
+      font-size:13px;
+      color:#111827;
+      user-select:all;
+    }
+    .copy-btn.small {
+      padding:8px 12px;
+      font-size:13px;
+    }
+
   </style>
 </head>
 <body>
@@ -106,10 +131,11 @@
         <img src="lagos_logo.png" class="crest" alt="Lagos crest" onerror="this.style.visibility='hidden'" />
         <h1>Add Certificate</h1>
         <img src="lssc_logo.png" class="crest" alt="LSSC logo" onerror="this.style.visibility='hidden'" />
+        <span></span>
       </div>
       <p class="subtitle">Enter new certificate details below</p>
 
-      <form id="certificateForm">
+      <form id="certificateForm" autocomplete="off">
         <div>
           <label for="siteName">Name of Site</label>
           <input type="text" id="siteName" required>
@@ -146,7 +172,8 @@
       </form>
 
       <div id="status" class="status info" style="display:none;"></div>
-      <div id="result"></div>
+
+      <div id="result" aria-live="polite"></div>
     </article>
   </div>
 
@@ -177,12 +204,80 @@
       statusEl.textContent = text;
     }
 
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (err) {
+        console.warn('Clipboard write failed', err);
+        return false;
+      }
+    }
+
+    function renderResultWithCopy(id) {
+      // Clear previous
+      resultEl.innerHTML = "";
+
+      // Wrapper
+      const wrapper = document.createElement('div');
+      wrapper.className = 'id-row';
+
+      // ID bubble (click to select)
+      const bubble = document.createElement('div');
+      bubble.className = 'id-bubble';
+      bubble.id = 'newId';
+      bubble.textContent = id;
+      bubble.title = 'Tap to select';
+      bubble.onclick = () => {
+        // select text for old browsers / visual affordance
+        const range = document.createRange();
+        range.selectNodeContents(bubble);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      };
+
+      // Copy button
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn small';
+      copyBtn.type = 'button';
+      copyBtn.textContent = 'Copy ID';
+      copyBtn.onclick = async () => {
+        const ok = await copyToClipboard(id);
+        if (ok) {
+          // temporary feedback
+          const prev = copyBtn.textContent;
+          copyBtn.textContent = 'Copied ✓';
+          setTimeout(() => copyBtn.textContent = prev, 1400);
+          setStatus('info', 'ID copied to clipboard');
+          setTimeout(()=> { statusEl.style.display = 'none'; }, 1400);
+        } else {
+          setStatus('err', 'Could not copy (use long-press)');
+        }
+      };
+
+      // Link to generate QR
+      const qrLink = document.createElement('a');
+      qrLink.href = `generateqr.html?id=${encodeURIComponent(id)}`;
+      qrLink.className = 'copy-btn small';
+      qrLink.textContent = 'Generate QR';
+      qrLink.style.textDecoration = 'none';
+      qrLink.style.display = 'inline-block';
+      qrLink.style.textAlign = 'center';
+
+      wrapper.appendChild(bubble);
+      wrapper.appendChild(copyBtn);
+      wrapper.appendChild(qrLink);
+
+      resultEl.appendChild(wrapper);
+    }
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       setStatus("info", "Saving certificate…");
 
       try {
-        const docRef = await addDoc(collection(db, "certificates"), {
+        const payload = {
           siteName: document.getElementById("siteName").value,
           siteAddress: document.getElementById("siteAddress").value,
           reference: document.getElementById("reference").value,
@@ -192,13 +287,18 @@
           contact: document.getElementById("contact").value,
           phone: document.getElementById("phone").value,
           createdAt: serverTimestamp()
-        });
+        };
 
-        setStatus("info", "Certificate saved successfully!");
-        resultEl.innerHTML = `
-          ✅ Done!<br>
-          <a href="generateqr.html?id=${docRef.id}">Generate QR for this certificate</a>
-        `;
+        const docRef = await addDoc(collection(db, "certificates"), payload);
+
+        // show ID + copy button + QR link
+        renderResultWithCopy(docRef.id);
+
+        // keep status visible briefly
+        setStatus("info", "✅ Certificate saved successfully!");
+        // setTimeout(()=> { statusEl.style.display = 'none'; }, 1400);
+
+        form.reset();
       } catch (err) {
         console.error(err);
         setStatus("err", "Error saving certificate");
